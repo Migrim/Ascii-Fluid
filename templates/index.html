@@ -72,6 +72,7 @@
       let linesCleared = 0;
       let score = 0;
       let paused = false;
+      let pauseStartTime = null;
       let combo = 0;
       let specialMessage = "";
       let difficultySetting = "Normal";
@@ -83,6 +84,7 @@
       };
       let coins = 0;
       let currentBlockAppearance = "[]";
+
       let currentBorderStyle = { 
         topLeft: "┌", 
         topRight: "┐", 
@@ -92,27 +94,34 @@
         vertical: "│" 
       };
       let currentTheme = { background: "black", color: "white" };
+
+      // Remove font customization.
       const storeItems = {
         block: [
           { name: "Standard", appearance: "[]", price: 0, unlocked: true },
           { name: "Neon", appearance: "||", price: 0, unlocked: true },
-          { name: "Pixel", appearance: "##", price: 0, unlocked: true },
-          { name: "Checker", appearance: "█░", price: 0, unlocked: true },
+          { name: "Dotted", appearance: "░░", price: 0, unlocked: true },
+          { name: "Block", appearance: "██", price: 0, unlocked: true },
           { name: "Hashes", appearance: "##", price: 500, unlocked: false },
           { name: "Arrows", appearance: "<>", price: 1000, unlocked: false },
-          { name: "Smileys", appearance: ":)", price: 2000, unlocked: false }
+          { name: "Smileys", appearance: ":)", price: 2000, unlocked: false },
+          { name: "Circle", appearance: "◯◯", price: 800, unlocked: false },
+          { name: "Wave", appearance: "▒▒", price: 1200, unlocked: false },
+          { name: "Diamond", appearance: "♦♦", price: 1500, unlocked: false },
+          { name: "Sliced", appearance: "▓▓", price: 2000, unlocked: false }
         ],
         border: [
-          { name: "Standard", corner: "+", horizontal: "-", vertical: "|" , price: 0, unlocked: true },
-          { name: "Double", corner: "╔", horizontal: "═", vertical: "║", price: 0, unlocked: true },
-          { name: "Dashed", corner: "·", horizontal: "–", vertical: "│", price: 0, unlocked: true },
-          { name: "Sharp", corner: "#", horizontal: "=", vertical: "!" , price: 750, unlocked: false },
-          { name: "Star", corner: "*", horizontal: "*", vertical: "*" , price: 1500, unlocked: false }
+          { name: "Standard", topLeft: "┌", topRight: "┐", bottomLeft: "└", bottomRight: "┘", horizontal: "─", vertical: "│", price: 0, unlocked: true },
+          { name: "Double", topLeft: "╔", topRight: "╗", bottomLeft: "╚", bottomRight: "╝", horizontal: "═", vertical: "║", price: 0, unlocked: true },
+          { name: "Dashed", topLeft: "┌", topRight: "┐", bottomLeft: "└", bottomRight: "┘", horizontal: "┄", vertical: "┆", price: 0, unlocked: true },
+          { name: "Sharp", topLeft: "┏", topRight: "┓", bottomLeft: "┗", bottomRight: "┛", horizontal: "━", vertical: "┃", price: 750, unlocked: false },
+          { name: "Star", topLeft: "✶", topRight: "✶", bottomLeft: "✶", bottomRight: "✶", horizontal: "*", vertical: "*", price: 1500, unlocked: false },
+          { name: "Rounded", topLeft: "╭", topRight: "╮", bottomLeft: "╰", bottomRight: "╯", horizontal: "─", vertical: "│", price: 800, unlocked: false }
         ],
         theme: [
           { name: "Default", background: "black", color: "white", price: 0, unlocked: true },
-          { name: "Solarized", background: "#002b36", color: "#839496", price: 0, unlocked: true },
-          { name: "Monokai", background: "#272822", color: "#f8f8f2", price: 0, unlocked: true },
+          { name: "Purple", background: "black", color: "purple", price: 0, unlocked: true },
+          { name: "Blue", background: "black", color: "blue", price: 0, unlocked: true },
           { name: "Red Alert", background: "black", color: "red", price: 500, unlocked: false },
           { name: "Green Matrix", background: "black", color: "lime", price: 750, unlocked: false },
           { name: "Blue Ocean", background: "navy", color: "cyan", price: 1000, unlocked: false }
@@ -140,8 +149,32 @@
         Z: "red"
       };
       let highScore = 0;
-      function loadGameData(){ let data = localStorage.getItem("terminalBlocksData"); if(data){ let obj = JSON.parse(data); highScore = obj.highScore !== undefined ? obj.highScore : 0; difficultySetting = obj.difficultySetting || difficultySetting; colorMode = obj.colorMode || colorMode; coins = obj.coins !== undefined ? obj.coins : coins; currentBlockAppearance = obj.currentBlockAppearance || currentBlockAppearance; currentBorderStyle = obj.currentBorderStyle || currentBorderStyle; currentTheme = obj.currentTheme || currentTheme; if(obj.storeItems){ for(let cat in storeItems){ if(obj.storeItems[cat]){ storeItems[cat].forEach((item, index)=>{ storeItems[cat][index].unlocked = item.unlocked; }); } } } } }
-      function saveGameData(){ let data = { highScore: highScore, difficultySetting: difficultySetting, colorMode: colorMode, coins: coins, currentBlockAppearance: currentBlockAppearance, currentBorderStyle: currentBorderStyle, currentTheme: currentTheme, storeItems: storeItems }; localStorage.setItem("terminalBlocksData", JSON.stringify(data)); }
+      function loadGameData(){ 
+        let data = localStorage.getItem("terminalBlocksData"); 
+        if(data){ 
+          let obj = JSON.parse(data); 
+          highScore = obj.highScore !== undefined ? obj.highScore : 0; 
+          difficultySetting = obj.difficultySetting || difficultySetting; 
+          colorMode = obj.colorMode || colorMode; 
+          coins = obj.coins !== undefined ? obj.coins : coins; 
+          currentBlockAppearance = obj.currentBlockAppearance || currentBlockAppearance; 
+          currentBorderStyle = obj.currentBorderStyle || currentBorderStyle; 
+          currentTheme = obj.currentTheme || currentTheme; 
+        } 
+      }
+      function saveGameData(){ 
+        let data = { 
+          highScore: highScore, 
+          difficultySetting: difficultySetting, 
+          colorMode: colorMode, 
+          coins: coins, 
+          currentBlockAppearance: currentBlockAppearance, 
+          currentBorderStyle: currentBorderStyle, 
+          currentTheme: currentTheme,
+          storeItems: storeItems 
+        }; 
+        localStorage.setItem("terminalBlocksData", JSON.stringify(data)); 
+      }
       function rotateOffset(offset, rotation) {
         let x = offset.x, y = offset.y;
         for (let i = 0; i < rotation; i++) {
@@ -237,6 +270,20 @@
             callback();
           }
         }, 150);
+      }
+      // New game over animation: flash "GAME OVER" several times before showing the final game over screen.
+      function animateGameOver(callback) {
+        let flashes = 0;
+        flashInterval = setInterval(() => {
+          flashes++;
+          specialMessage = (flashes % 2 === 0) ? "GAME OVER" : "";
+          renderGame();
+          if (flashes >= 8) {
+            clearInterval(flashInterval);
+            specialMessage = "";
+            callback();
+          }
+        }, 200);
       }
       function computeGhostCells() {
         if (!fallingPiece) return [];
@@ -351,28 +398,35 @@
         output += "Use W/S to navigate and Enter to select.\nPress Esc/Q to return to Main Menu.";
         document.getElementById("game").innerHTML = output;
       }
+      // Redesigned settings menu.
       function renderSettingsMenu() {
-        let items = [
+        let options = [
           "Difficulty: " + difficultySetting,
           "Color Mode: " + (colorMode === "colors" ? "Colors" : "Monochrome"),
           "Back"
         ];
-        let width = 32;
-        let border = { topLeft: "╔", topRight: "╗", bottomLeft: "╚", bottomRight: "╝", horizontal: "═", vertical: "║" };
-        let output = border.topLeft + border.horizontal.repeat(width - 2) + border.topRight + "\n";
+        let width = 34;
+        let topBorder = "╭" + "─".repeat(width - 2) + "╮\n";
         let title = " SETTINGS ";
-        let padLeft = Math.floor((width - 2 - title.length) / 2);
-        let padRight = width - 2 - title.length - padLeft;
-        output += border.vertical + " ".repeat(padLeft) + title + " ".repeat(padRight) + border.vertical + "\n";
-        output += "├" + "─".repeat(width - 2) + "┤\n";
-        for (let i = 0; i < items.length; i++) {
-          let padded = items[i].padEnd(width - 4, " ");
-          output += i === currentSettingsMenuIndex ? border.vertical + " > " + padded + border.vertical + "\n" : border.vertical + "   " + padded + border.vertical + "\n";
+        let titlePadding = Math.floor((width - 2 - title.length) / 2);
+        let titleLine = "│" + " ".repeat(titlePadding) + title + " ".repeat(width - 2 - titlePadding - title.length) + "│\n";
+        let separator = "├" + "─".repeat(width - 2) + "┤\n";
+        let optionLines = "";
+        for (let i = 0; i < options.length; i++) {
+          let line = options[i];
+          if(i === currentSettingsMenuIndex) {
+            line = "> " + line;
+          } else {
+            line = "  " + line;
+          }
+          optionLines += "│" + line.padEnd(width - 2, " ") + "│\n";
         }
-        output += border.bottomLeft + border.horizontal.repeat(width - 2) + border.bottomRight + "\n";
-        output += "\nUse W/S to navigate, A/D to change values, and Enter to select.\nPress Esc/Q to return to Main Menu.";
+        let bottomBorder = "╰" + "─".repeat(width - 2) + "╯\n";
+        let instructions = "\nUse W/S to navigate, A/D to change, Enter to select, Esc/Q to return.";
+        let output = topBorder + titleLine + separator + optionLines + bottomBorder + instructions;
         document.getElementById("game").innerHTML = output;
       }
+      // Redesigned store preview with a cool preview for blocks and borders.
       function renderStore() {
         let output = "Customization Store\n";
         output += "Coins: " + coins + "\n\n";
@@ -386,9 +440,21 @@
         let currentItem = storeItems[currentStoreCategory][currentStoreItemIndex];
         output += "Item: " + currentItem.name + "\n";
         if (currentStoreCategory === "block") {
-          output += "Appearance: " + currentItem.appearance + "\n";
+          // 2x2 grid preview for blocks.
+          let preview = currentItem.appearance + currentItem.appearance + "\n" +
+                        currentItem.appearance + currentItem.appearance;
+          output += "Preview:\n" + preview + "\n";
         } else if (currentStoreCategory === "border") {
-          output += "Preview: " + currentItem.corner + currentItem.horizontal + "\n";
+          let tl = currentItem.topLeft || currentItem.corner;
+          let tr = currentItem.topRight || currentItem.corner;
+          let bl = currentItem.bottomLeft || currentItem.corner;
+          let br = currentItem.bottomRight || currentItem.corner;
+          let hor = currentItem.horizontal;
+          let ver = currentItem.vertical;
+          let sampleWidth = 6;
+          let sampleLine = hor.repeat(sampleWidth);
+          let sampleBox = tl + sampleLine + tr + "\n" + ver + " ".repeat(sampleWidth) + ver + "\n" + bl + sampleLine + br;
+          output += "Preview:\n" + sampleBox + "\n";
         } else if (currentStoreCategory === "theme") {
           output += "Background: " + currentItem.background + "\n";
           output += "Text Color: " + currentItem.color + "\n";
@@ -408,6 +474,20 @@
         output += "Menu Navigation: Use W/S to navigate and Enter to select.\n";
         output += "\nPress Esc/Q to return to the Main Menu.";
         document.getElementById("game").innerHTML = output;
+      }
+
+      function animateGameOver(callback) {
+        let flashes = 0;
+        flashInterval = setInterval(() => {
+          flashes++;
+          specialMessage = (flashes % 2 === 0) ? "GAME OVER" : "";
+          renderGame();
+          if (flashes >= 8) {
+            clearInterval(flashInterval);
+            specialMessage = "";
+            callback();
+          }
+        }, 200);
       }
       function renderGameOver() {
         let art = `
@@ -584,7 +664,7 @@
           if(score > highScore) highScore = score;
           saveGameData();
           gameState = "gameover";
-          renderGameOver();
+          animateGameOver(renderGameOver);
         }
       }
       function startGame() {
@@ -737,14 +817,25 @@
                 if (currentStoreCategory === "block") {
                   currentBlockAppearance = currentItem.appearance;
                 } else if (currentStoreCategory === "border") {
-                  currentBorderStyle = { 
-                    topLeft: currentItem.corner, 
-                    topRight: currentItem.corner, 
-                    bottomLeft: currentItem.corner, 
-                    bottomRight: currentItem.corner, 
-                    horizontal: currentItem.horizontal, 
-                    vertical: currentItem.vertical 
-                  };
+                  if(currentItem.topLeft){
+                    currentBorderStyle = { 
+                      topLeft: currentItem.topLeft, 
+                      topRight: currentItem.topRight, 
+                      bottomLeft: currentItem.bottomLeft, 
+                      bottomRight: currentItem.bottomRight, 
+                      horizontal: currentItem.horizontal, 
+                      vertical: currentItem.vertical 
+                    };
+                  } else {
+                    currentBorderStyle = { 
+                      topLeft: currentItem.corner, 
+                      topRight: currentItem.corner, 
+                      bottomLeft: currentItem.corner, 
+                      bottomRight: currentItem.corner, 
+                      horizontal: currentItem.horizontal, 
+                      vertical: currentItem.vertical 
+                    };
+                  }
                 } else if (currentStoreCategory === "theme") {
                   currentTheme = { background: currentItem.background, color: currentItem.color };
                   document.body.style.backgroundColor = currentTheme.background;
@@ -758,14 +849,25 @@
               if (currentStoreCategory === "block") {
                 currentBlockAppearance = currentItem.appearance;
               } else if (currentStoreCategory === "border") {
-                currentBorderStyle = { 
-                  topLeft: currentItem.corner, 
-                  topRight: currentItem.corner, 
-                  bottomLeft: currentItem.corner, 
-                  bottomRight: currentItem.corner, 
-                  horizontal: currentItem.horizontal, 
-                  vertical: currentItem.vertical 
-                };
+                if(currentItem.topLeft){
+                  currentBorderStyle = { 
+                    topLeft: currentItem.topLeft, 
+                    topRight: currentItem.topRight, 
+                    bottomLeft: currentItem.bottomLeft, 
+                    bottomRight: currentItem.bottomRight, 
+                    horizontal: currentItem.horizontal, 
+                    vertical: currentItem.vertical 
+                  };
+                } else {
+                  currentBorderStyle = { 
+                    topLeft: currentItem.corner, 
+                    topRight: currentItem.corner, 
+                    bottomLeft: currentItem.corner, 
+                    bottomRight: currentItem.corner, 
+                    horizontal: currentItem.horizontal, 
+                    vertical: currentItem.vertical 
+                  };
+                }
               } else if (currentStoreCategory === "theme") {
                 currentTheme = { background: currentItem.background, color: currentItem.color };
                 document.body.style.backgroundColor = currentTheme.background;
@@ -792,7 +894,18 @@
             return;
           }
           if (e.key.toLowerCase() === "p") {
-            paused = !paused;
+            if (paused) {
+              let pauseDuration = Date.now() - pauseStartTime;
+              startTime += pauseDuration;
+              if (selectedGameMode === "Time Attack") {
+                lastTickTime += pauseDuration;
+              }
+              paused = false;
+              pauseStartTime = null;
+            } else {
+              paused = true;
+              pauseStartTime = Date.now();
+            }
             updatePauseModal();
             renderGame();
           }
