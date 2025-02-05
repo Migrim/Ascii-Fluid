@@ -2,6 +2,8 @@
 
 **Terminal Blocks** is a text-based falling-block puzzle game built using HTML, CSS, and JavaScript. The game features a retro terminal aesthetic and multiple gameplay modes.
 
+<img width="786" alt="Screenshot 2025-02-05 at 12 43 23" src="https://github.com/user-attachments/assets/b5591d2b-60c3-44dd-b291-0651371f36c5" />
+
 ## Features
 
 - **Classic falling block mechanics**
@@ -32,6 +34,8 @@
 
 ## Game Modes
 
+<img width="786" alt="Screenshot 2025-02-05 at 12 44 04" src="https://github.com/user-attachments/assets/15ef7648-87ae-417f-af59-187d92fca9b5" />
+
 - **Normal**: Classic falling-block gameplay.
 - **Time Attack**: Survive and clear as many lines as possible within a time limit.
 - **Chaos Blitz**: Blocks randomly change into different pieces mid-game.
@@ -45,6 +49,8 @@ Earn coins by playing the game and spend them on:
 - **Themes** (Default, Solarized, Monokai, Matrix, etc.)
 
 ## How to Play
+
+<img width="786" alt="Screenshot 2025-02-05 at 12 44 41" src="https://github.com/user-attachments/assets/dd254f4b-d2a7-44d0-af7b-e764bad1fd4d" />
 
 1. Open `index.html` in your browser.
 2. Navigate the main menu using **W/S** and select with **Enter**.
