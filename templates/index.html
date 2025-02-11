@@ -28,6 +28,19 @@
         overflow: hidden;
         border: none;
       }
+      #nextPiece {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background-color: black;
+        color: white;
+        font-family: monospace;
+        white-space: pre;
+        font-size: 20px;
+        line-height: 20px;
+        border: 2px solid white;
+        padding: 10px;
+      }
       #pauseModal,
       #exitModal {
         position: absolute;
@@ -48,6 +61,7 @@
   </head>
   <body>
     <div id="game"></div>
+    <div id="nextPiece"></div>
     <div id="pauseModal">PAUSED<br><br>Press P to resume</div>
     <div id="exitModal">Exit Game?<br><br>Press Y to confirm, N to resume</div>
     <script>
@@ -84,7 +98,6 @@
       };
       let coins = 0;
       let currentBlockAppearance = "[]";
-
       let currentBorderStyle = { 
         topLeft: "┌", 
         topRight: "┐", 
@@ -94,8 +107,6 @@
         vertical: "│" 
       };
       let currentTheme = { background: "black", color: "white" };
-
-      // Remove font customization.
       const storeItems = {
         block: [
           { name: "Standard", appearance: "[]", price: 0, unlocked: true },
@@ -271,7 +282,6 @@
           }
         }, 150);
       }
-      // New game over animation: flash "GAME OVER" several times before showing the final game over screen.
       function animateGameOver(callback) {
         let flashes = 0;
         flashInterval = setInterval(() => {
@@ -306,6 +316,7 @@
         }
       }
       function renderGame() {
+        document.getElementById("nextPiece").style.display = "block";
         let header = "Level: " + level + "  Lines: " + linesCleared + "  Score: " + score;
         if (combo > 1) header += "  Combo: x" + combo;
         if (selectedGameMode === "Time Attack") {
@@ -365,8 +376,45 @@
         }
         output += bottomBorder;
         document.getElementById("game").innerHTML = output;
+        renderNextPiece();
+      }
+      function renderNextPiece() {
+        if(!nextPiece){
+          document.getElementById("nextPiece").innerHTML = "";
+          return;
+        }
+        let shape = nextPiece.shape;
+        let minX = Math.min(...shape.map(c => c.x));
+        let maxX = Math.max(...shape.map(c => c.x));
+        let minY = Math.min(...shape.map(c => c.y));
+        let maxY = Math.max(...shape.map(c => c.y));
+        let width = maxX - minX + 1;
+        let height = maxY - minY + 1;
+        let grid = [];
+        for(let y = 0; y < height; y++){
+          grid[y] = new Array(width).fill("  ");
+        }
+        for(let cell of shape){
+          let x = cell.x - minX;
+          let y = cell.y - minY;
+          if(colorMode === "colors"){
+            grid[y][x] = '<span style="color:' + blockColors[nextPiece.name] + ';">' + currentBlockAppearance + '</span>';
+          } else {
+            grid[y][x] = currentBlockAppearance;
+          }
+        }
+        let output = "";
+        for(let y = 0; y < height; y++){
+          let row = "";
+          for(let x = 0; x < width; x++){
+            row += grid[y][x];
+          }
+          output += row + "<br>";
+        }
+        document.getElementById("nextPiece").innerHTML = output;
       }
       function renderMainMenu() {
+        document.getElementById("nextPiece").style.display = "none";
         let logo = `
  ▄▄▄▄    ██▓     ▒█████   ▄████▄   ██ ▄█▀
 ▓█████▄ ▓██▒    ▒██▒  ██▒▒██▀ ▀█   ██▄█▒ 
@@ -385,6 +433,7 @@
         document.getElementById("game").innerHTML = header;
       }
       function renderModeSelect() {
+        document.getElementById("nextPiece").style.display = "none";
         let output = "Select Game Mode\n\n";
         let maxLen = Math.max(...gameModes.map(mode => mode.length));
         let boxWidth = maxLen + 2;
@@ -398,8 +447,8 @@
         output += "Use W/S to navigate and Enter to select.\nPress Esc/Q to return to Main Menu.";
         document.getElementById("game").innerHTML = output;
       }
-      // Redesigned settings menu.
       function renderSettingsMenu() {
+        document.getElementById("nextPiece").style.display = "none";
         let options = [
           "Difficulty: " + difficultySetting,
           "Color Mode: " + (colorMode === "colors" ? "Colors" : "Monochrome"),
@@ -426,8 +475,8 @@
         let output = topBorder + titleLine + separator + optionLines + bottomBorder + instructions;
         document.getElementById("game").innerHTML = output;
       }
-      // Redesigned store preview with a cool preview for blocks and borders.
       function renderStore() {
+        document.getElementById("nextPiece").style.display = "none";
         let output = "Customization Store\n";
         output += "Coins: " + coins + "\n\n";
         const catNames = { block: "Block Appearance", border: "Border Style", theme: "Theme" };
@@ -440,7 +489,6 @@
         let currentItem = storeItems[currentStoreCategory][currentStoreItemIndex];
         output += "Item: " + currentItem.name + "\n";
         if (currentStoreCategory === "block") {
-          // 2x2 grid preview for blocks.
           let preview = currentItem.appearance + currentItem.appearance + "\n" +
                         currentItem.appearance + currentItem.appearance;
           output += "Preview:\n" + preview + "\n";
@@ -465,6 +513,7 @@
         document.getElementById("game").innerHTML = output;
       }
       function renderHelpMenu() {
+        document.getElementById("nextPiece").style.display = "none";
         let output = "Instructions\n\n";
         output += "Movement: Use W/A/S/D or Arrow keys to move pieces.\n";
         output += "Rotation: Press W or Up to rotate, Z to counter-rotate.\n";
@@ -475,21 +524,8 @@
         output += "\nPress Esc/Q to return to the Main Menu.";
         document.getElementById("game").innerHTML = output;
       }
-
-      function animateGameOver(callback) {
-        let flashes = 0;
-        flashInterval = setInterval(() => {
-          flashes++;
-          specialMessage = (flashes % 2 === 0) ? "GAME OVER" : "";
-          renderGame();
-          if (flashes >= 8) {
-            clearInterval(flashInterval);
-            specialMessage = "";
-            callback();
-          }
-        }, 200);
-      }
       function renderGameOver() {
+        document.getElementById("nextPiece").style.display = "none";
         let art = `
   ▄████  ▄▄▄       ███▄ ▄███▓▓█████    
  ██▒ ▀█▒▒████▄    ▓██▒▀█▀ ██▒▓█   ▀    
@@ -510,8 +546,7 @@
   ░ ▒ ▒░    ░ ░░   ░ ░  ░  ░▒ ░ ▒░     
 ░ ░ ░ ▒       ░░     ░     ░░   ░      
     ░ ░        ░     ░  ░   ░          
-              ░                         
-`;
+              ░                          `;
         let output = art + "\n";
         output += "Score: " + score + "\n";
         output += "Coins Earned: " + Math.floor(score / 50) + "\n";
@@ -604,14 +639,16 @@
                   animateLevelUp(() => {
                     level = newLevel;
                     animating = false;
-                    fallingPiece = spawnPiece();
+                    fallingPiece = nextPiece;
+                    nextPiece = spawnPiece();
                     if (!validMove(fallingPiece.x, fallingPiece.y, fallingPiece.rotation)) gameOver = true;
                     renderGame();
                   });
                 } else {
                   level = newLevel;
                   animating = false;
-                  fallingPiece = spawnPiece();
+                  fallingPiece = nextPiece;
+                  nextPiece = spawnPiece();
                   if (!validMove(fallingPiece.x, fallingPiece.y, fallingPiece.rotation)) gameOver = true;
                   renderGame();
                 }
@@ -629,14 +666,16 @@
                   animateLevelUp(() => {
                     level = newLevel;
                     animating = false;
-                    fallingPiece = spawnPiece();
+                    fallingPiece = nextPiece;
+                    nextPiece = spawnPiece();
                     if (!validMove(fallingPiece.x, fallingPiece.y, fallingPiece.rotation)) gameOver = true;
                     renderGame();
                   });
                 } else {
                   level = newLevel;
                   animating = false;
-                  fallingPiece = spawnPiece();
+                  fallingPiece = nextPiece;
+                  nextPiece = spawnPiece();
                   if (!validMove(fallingPiece.x, fallingPiece.y, fallingPiece.rotation)) gameOver = true;
                   renderGame();
                 }
@@ -644,7 +683,8 @@
             }
           } else {
             combo = 0;
-            fallingPiece = spawnPiece();
+            fallingPiece = nextPiece;
+            nextPiece = spawnPiece();
             if (!validMove(fallingPiece.x, fallingPiece.y, fallingPiece.rotation)) gameOver = true;
           }
           renderGame();
@@ -685,15 +725,22 @@
         nextPiece = spawnPiece();
         fallingPiece = nextPiece;
         nextPiece = spawnPiece();
+        renderNextPiece();
         gameLoop();
       }
       function updatePauseModal() {
         let modal = document.getElementById("pauseModal");
         modal.style.display = paused ? "block" : "none";
+        if (paused) {
+          document.getElementById("exitModal").style.display = "none";
+        }
       }
       function updateExitModal(show) {
         let modal = document.getElementById("exitModal");
         modal.style.display = show ? "block" : "none";
+        if (show) {
+          document.getElementById("pauseModal").style.display = "none";
+        }
       }
       document.addEventListener("keydown", function (e) {
         if (gameState === "game" && document.getElementById("exitModal").style.display === "block") {
