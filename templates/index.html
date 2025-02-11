@@ -17,7 +17,8 @@
         position: relative;
       }
       #game {
-        width: 800px;
+        width: 90%;
+        max-width: 800px;
         height: 600px;
         margin: 20px auto;
         font-family: monospace;
@@ -57,6 +58,44 @@
         display: none;
         z-index: 10;
       }
+      #toast {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-family: monospace;
+        font-size: 16px;
+        display: none;
+        z-index: 20;
+      }
+      #coinDisplay {
+        display: inline-block;
+        width: 80px;
+        height: 40px;
+        vertical-align: middle;
+      }
+      .coin {
+        display: block;
+        font-family: monospace;
+        font-size: 24px;
+        transform-style: preserve-3d;
+        animation: rotateCoin 2s linear infinite;
+      }
+      @keyframes rotateCoin {
+        from { transform: rotateY(0deg); }
+        to { transform: rotateY(360deg); }
+      }
+      .theme-preview {
+        display: inline-block;
+        border: 1px solid white;
+        padding: 10px;
+        max-width: 200px;
+        word-wrap: break-word;
+      }
     </style>
   </head>
   <body>
@@ -64,6 +103,7 @@
     <div id="nextPiece"></div>
     <div id="pauseModal">PAUSED<br><br>Press P to resume</div>
     <div id="exitModal">Exit Game?<br><br>Press Y to confirm, N to resume</div>
+    <div id="toast"></div>
     <script>
       let gameState = "menu";
       const mainMenuOptions = ["Play", "Instructions", "Settings", "Customization"];
@@ -98,14 +138,7 @@
       };
       let coins = 0;
       let currentBlockAppearance = "[]";
-      let currentBorderStyle = { 
-        topLeft: "┌", 
-        topRight: "┐", 
-        bottomLeft: "└", 
-        bottomRight: "┘", 
-        horizontal: "─", 
-        vertical: "│" 
-      };
+      let currentBorderStyle = { topLeft: "┌", topRight: "┐", bottomLeft: "└", bottomRight: "┘", horizontal: "─", vertical: "│" };
       let currentTheme = { background: "black", color: "white" };
       const storeItems = {
         block: [
@@ -116,10 +149,12 @@
           { name: "Hashes", appearance: "##", price: 500, unlocked: false },
           { name: "Arrows", appearance: "<>", price: 1000, unlocked: false },
           { name: "Smileys", appearance: ":)", price: 2000, unlocked: false },
-          { name: "Circle", appearance: "◯◯", price: 800, unlocked: false },
+          { name: "Circle", appearance: "◯", price: 800, unlocked: false },
           { name: "Wave", appearance: "▒▒", price: 1200, unlocked: false },
           { name: "Diamond", appearance: "♦♦", price: 1500, unlocked: false },
-          { name: "Sliced", appearance: "▓▓", price: 2000, unlocked: false }
+          { name: "Sliced", appearance: "▓▓", price: 2000, unlocked: false },
+          { name: "Gradient", appearance: "▭", price: 1000, unlocked: false },
+          { name: "Pixel", appearance: "■■", price: 1500, unlocked: false }
         ],
         border: [
           { name: "Standard", topLeft: "┌", topRight: "┐", bottomLeft: "└", bottomRight: "┘", horizontal: "─", vertical: "│", price: 0, unlocked: true },
@@ -127,7 +162,9 @@
           { name: "Dashed", topLeft: "┌", topRight: "┐", bottomLeft: "└", bottomRight: "┘", horizontal: "┄", vertical: "┆", price: 0, unlocked: true },
           { name: "Sharp", topLeft: "┏", topRight: "┓", bottomLeft: "┗", bottomRight: "┛", horizontal: "━", vertical: "┃", price: 750, unlocked: false },
           { name: "Star", topLeft: "✶", topRight: "✶", bottomLeft: "✶", bottomRight: "✶", horizontal: "*", vertical: "*", price: 1500, unlocked: false },
-          { name: "Rounded", topLeft: "╭", topRight: "╮", bottomLeft: "╰", bottomRight: "╯", horizontal: "─", vertical: "│", price: 800, unlocked: false }
+          { name: "Rounded", topLeft: "╭", topRight: "╮", bottomLeft: "╰", bottomRight: "╯", horizontal: "─", vertical: "│", price: 800, unlocked: false },
+          { name: "Double Dashed", topLeft: "┏", topRight: "┓", bottomLeft: "┗", bottomRight: "┛", horizontal: "┅", vertical: "┆", price: 1000, unlocked: false },
+          { name: "Fancy", topLeft: "❰", topRight: "❱", bottomLeft: "❰", bottomRight: "❱", horizontal: "═", vertical: "║", price: 1500, unlocked: false }
         ],
         theme: [
           { name: "Default", background: "black", color: "white", price: 0, unlocked: true },
@@ -135,10 +172,19 @@
           { name: "Blue", background: "black", color: "blue", price: 0, unlocked: true },
           { name: "Red Alert", background: "black", color: "red", price: 500, unlocked: false },
           { name: "Green Matrix", background: "black", color: "lime", price: 750, unlocked: false },
-          { name: "Blue Ocean", background: "navy", color: "cyan", price: 1000, unlocked: false }
+          { name: "Blue Ocean", background: "navy", color: "cyan", price: 1000, unlocked: false },
+          { name: "Solarized", background: "#002b36", color: "#839496", price: 750, unlocked: false }
+        ],
+        tetromino: [
+          { name: "Default", colors: { I: "cyan", J: "blue", L: "orange", O: "yellow", S: "lime", T: "magenta", Z: "red" }, price: 0, unlocked: true },
+          { name: "Gay Pride", colors: { I: "red", J: "orange", L: "yellow", O: "green", S: "blue", T: "indigo", Z: "violet" }, price: 0, unlocked: true },
+          { name: "Trans Pride", colors: { I: "lightblue", J: "pink", L: "white", O: "white", S: "pink", T: "lightblue", Z: "lightblue" }, price: 0, unlocked: true },
+          { name: "Neon", colors: { I: "#39FF14", J: "#FF073A", L: "#00FFFF", O: "#FF00FF", S: "#FFFF00", T: "#FF4500", Z: "#00FF7F" }, price: 1000, unlocked: false },
+          { name: "Pastel", colors: { I: "lightblue", J: "lightgreen", L: "lightyellow", O: "lightpink", S: "lavender", T: "peachpuff", Z: "lightcoral" }, price: 500, unlocked: false },
+          { name: "Vivid", colors: { I: "#00FFFF", J: "#0000FF", L: "#FFA500", O: "#FFFF00", S: "#00FF00", T: "#FF00FF", Z: "#FF0000" }, price: 750, unlocked: false }
         ]
       };
-      const storeCategories = ["block", "border", "theme"];
+      const storeCategories = ["block", "border", "theme", "tetromino"];
       let currentStoreCategory = "block";
       let currentStoreItemIndex = 0;
       const tetrominoes = [
@@ -150,15 +196,7 @@
         { name: "T", shape: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }] },
         { name: "Z", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 1 }] }
       ];
-      const blockColors = {
-        I: "cyan",
-        J: "blue",
-        L: "orange",
-        O: "yellow",
-        S: "lime",
-        T: "magenta",
-        Z: "red"
-      };
+      let tetrominoColors = { I: "cyan", J: "blue", L: "orange", O: "yellow", S: "lime", T: "magenta", Z: "red" };
       let highScore = 0;
       function loadGameData(){ 
         let data = localStorage.getItem("terminalBlocksData"); 
@@ -171,6 +209,7 @@
           currentBlockAppearance = obj.currentBlockAppearance || currentBlockAppearance; 
           currentBorderStyle = obj.currentBorderStyle || currentBorderStyle; 
           currentTheme = obj.currentTheme || currentTheme; 
+          tetrominoColors = obj.currentTetrominoScheme || tetrominoColors;
         } 
       }
       function saveGameData(){ 
@@ -182,6 +221,7 @@
           currentBlockAppearance: currentBlockAppearance, 
           currentBorderStyle: currentBorderStyle, 
           currentTheme: currentTheme,
+          currentTetrominoScheme: tetrominoColors,
           storeItems: storeItems 
         }; 
         localStorage.setItem("terminalBlocksData", JSON.stringify(data)); 
@@ -349,23 +389,11 @@
                 let inFalling = fallingCells.some(c => c.x === x && c.y === y);
                 let inGhost = ghostCells.some(c => c.x === x && c.y === y);
                 if (inFalling) {
-                  if (colorMode === "colors") {
-                    cellDraw = '<span style="color:' + blockColors[fallingPiece.name] + ';">' + currentBlockAppearance + '</span>';
-                  } else {
-                    cellDraw = currentBlockAppearance;
-                  }
+                  cellDraw = colorMode === "colors" ? '<span style="color:' + tetrominoColors[fallingPiece.name] + ';">' + currentBlockAppearance + '</span>' : currentBlockAppearance;
                 } else if (inGhost && board[y][x] === 0) {
-                  if (colorMode === "colors") {
-                    cellDraw = '<span style="color:gray;">..</span>';
-                  } else {
-                    cellDraw = "..";
-                  }
+                  cellDraw = colorMode === "colors" ? '<span style="color:gray;">..</span>' : "..";
                 } else if (board[y][x] !== 0) {
-                  if (colorMode === "colors") {
-                    cellDraw = '<span style="color:' + blockColors[board[y][x]] + ';">' + currentBlockAppearance + '</span>';
-                  } else {
-                    cellDraw = currentBlockAppearance;
-                  }
+                  cellDraw = colorMode === "colors" ? '<span style="color:' + tetrominoColors[board[y][x]] + ';">' + currentBlockAppearance + '</span>' : currentBlockAppearance;
                 }
                 row += cellDraw;
               }
@@ -379,7 +407,7 @@
         renderNextPiece();
       }
       function renderNextPiece() {
-        if(!nextPiece){
+        if (!nextPiece) {
           document.getElementById("nextPiece").innerHTML = "";
           return;
         }
@@ -391,22 +419,18 @@
         let width = maxX - minX + 1;
         let height = maxY - minY + 1;
         let grid = [];
-        for(let y = 0; y < height; y++){
+        for (let y = 0; y < height; y++) {
           grid[y] = new Array(width).fill("  ");
         }
-        for(let cell of shape){
+        for (let cell of shape) {
           let x = cell.x - minX;
           let y = cell.y - minY;
-          if(colorMode === "colors"){
-            grid[y][x] = '<span style="color:' + blockColors[nextPiece.name] + ';">' + currentBlockAppearance + '</span>';
-          } else {
-            grid[y][x] = currentBlockAppearance;
-          }
+          grid[y][x] = colorMode === "colors" ? '<span style="color:' + tetrominoColors[nextPiece.name] + ';">' + currentBlockAppearance + '</span>' : currentBlockAppearance;
         }
         let output = "";
-        for(let y = 0; y < height; y++){
+        for (let y = 0; y < height; y++) {
           let row = "";
-          for(let x = 0; x < width; x++){
+          for (let x = 0; x < width; x++) {
             row += grid[y][x];
           }
           output += row + "<br>";
@@ -463,11 +487,7 @@
         let optionLines = "";
         for (let i = 0; i < options.length; i++) {
           let line = options[i];
-          if(i === currentSettingsMenuIndex) {
-            line = "> " + line;
-          } else {
-            line = "  " + line;
-          }
+          line = i === currentSettingsMenuIndex ? "> " + line : "  " + line;
           optionLines += "│" + line.padEnd(width - 2, " ") + "│\n";
         }
         let bottomBorder = "╰" + "─".repeat(width - 2) + "╯\n";
@@ -476,22 +496,25 @@
         document.getElementById("game").innerHTML = output;
       }
       function renderStore() {
-        document.getElementById("nextPiece").style.display = "none";
-        let output = "Customization Store\n";
-        output += "Coins: " + coins + "\n\n";
-        const catNames = { block: "Block Appearance", border: "Border Style", theme: "Theme" };
+        let content = "<div id='storeContent'>";
+        content += "<div style='font-size:24px; font-weight:bold; margin-bottom:10px;'>Customisation Store</div>";
+        content += "<div id='coinDisplay'></div>";
+        const catNames = { block: "Block", border: "Border", theme: "Theme", tetromino: "Tetromino" };
         let currentCatIndex = storeCategories.indexOf(currentStoreCategory);
-        output += "Categories: ";
+        content += "<div id='storeCategories' style='margin-bottom:20px;'>Categories: ";
         storeCategories.forEach((cat, i) => {
-          output += (i === currentCatIndex ? "[" + catNames[cat] + "]" : " " + catNames[cat] + " ") + "   ";
+          content += i === currentCatIndex ? "<strong>[" + catNames[cat] + "]</strong> " : catNames[cat] + " ";
         });
-        output += "\n\n";
-        let currentItem = storeItems[currentStoreCategory][currentStoreItemIndex];
-        output += "Item: " + currentItem.name + "\n";
+        content += "</div>";
+        let items = storeItems[currentStoreCategory];
+        let currentItem = items[currentStoreItemIndex];
+        let prevIndex = (currentStoreItemIndex - 1 + items.length) % items.length;
+        let nextIndex = (currentStoreItemIndex + 1) % items.length;
+        content += "<div id='storeItem'>";
+        content += "<div style='margin-bottom:10px; font-size:18px;'>Prev: " + items[prevIndex].name + " | Current: <span style='color:yellow;'>" + currentItem.name + "</span> | Next: " + items[nextIndex].name + "</div>";
         if (currentStoreCategory === "block") {
-          let preview = currentItem.appearance + currentItem.appearance + "\n" +
-                        currentItem.appearance + currentItem.appearance;
-          output += "Preview:\n" + preview + "\n";
+          let preview = currentItem.appearance + currentItem.appearance + "<br>" + currentItem.appearance + currentItem.appearance;
+          content += "<div style='margin:20px;'>" + preview + "</div>";
         } else if (currentStoreCategory === "border") {
           let tl = currentItem.topLeft || currentItem.corner;
           let tr = currentItem.topRight || currentItem.corner;
@@ -501,16 +524,22 @@
           let ver = currentItem.vertical;
           let sampleWidth = 6;
           let sampleLine = hor.repeat(sampleWidth);
-          let sampleBox = tl + sampleLine + tr + "\n" + ver + " ".repeat(sampleWidth) + ver + "\n" + bl + sampleLine + br;
-          output += "Preview:\n" + sampleBox + "\n";
+          let sampleBox = tl + sampleLine + tr + "<br>" + ver + " ".repeat(sampleWidth) + ver + "<br>" + bl + sampleLine + br;
+          content += "<div style='margin:20px;'>" + sampleBox + "</div>";
         } else if (currentStoreCategory === "theme") {
-          output += "Background: " + currentItem.background + "\n";
-          output += "Text Color: " + currentItem.color + "\n";
+          content += "<div style='margin:20px;'><div class='theme-preview' style='background:" + currentItem.background + "; color:" + currentItem.color + ";'>Sample</div></div>";
+        } else if (currentStoreCategory === "tetromino") {
+          let scheme = currentItem.colors;
+          let preview = "";
+          ["I","J","L","O","S","T","Z"].forEach(type => {
+            preview += colorMode === "colors" ? '<span style="color:' + scheme[type] + ';">' + currentBlockAppearance + '</span> ' : currentBlockAppearance + " ";
+          });
+          content += "<div style='margin:20px;'>" + preview + "</div>";
         }
-        output += "Price: " + currentItem.price + "\n";
-        output += "Status: " + (currentItem.unlocked ? "Owned" : "Not Owned") + "\n\n";
-        output += "Use W/S to switch category,\nA/D to change item.\nPress Enter to purchase/select, or Esc/Q to return to Main Menu.";
-        document.getElementById("game").innerHTML = output;
+        content += "<div style='margin-top:20px;'>Price: " + currentItem.price + " | Status: " + (currentItem.unlocked ? "Owned" : "Not Owned") + "</div>";
+        content += "<div style='margin-top:20px;'>Use Up/Down to switch category, Left/Right to change item.<br>Press Enter to purchase/select, or Esc/Q to return.</div>";
+        content += "</div></div>";
+        document.getElementById("game").innerHTML = content;
       }
       function renderHelpMenu() {
         document.getElementById("nextPiece").style.display = "none";
@@ -549,7 +578,7 @@
               ░                          `;
         let output = art + "\n";
         output += "Score: " + score + "\n";
-        output += "Coins Earned: " + Math.floor(score / 50) + "\n";
+        output += "Coins Earned: " + Math.floor(score / 25) + "\n";
         output += "\nPress Enter to return to the Main Menu.";
         document.getElementById("game").innerHTML = output;
       }
@@ -700,8 +729,8 @@
         if (!gameOver) {
           setTimeout(gameLoop, getDropSpeed());
         } else {
-          coins += Math.floor(score / 50);
-          if(score > highScore) highScore = score;
+          coins += Math.floor(score / 25);
+          if (score > highScore) highScore = score;
           saveGameData();
           gameState = "gameover";
           animateGameOver(renderGameOver);
@@ -741,6 +770,14 @@
         if (show) {
           document.getElementById("pauseModal").style.display = "none";
         }
+      }
+      function showToast(msg) {
+        let toast = document.getElementById("toast");
+        toast.innerHTML = msg;
+        toast.style.display = "block";
+        setTimeout(() => {
+          toast.style.display = "none";
+        }, 3000);
       }
       document.addEventListener("keydown", function (e) {
         if (gameState === "game" && document.getElementById("exitModal").style.display === "block") {
@@ -864,63 +901,37 @@
                 if (currentStoreCategory === "block") {
                   currentBlockAppearance = currentItem.appearance;
                 } else if (currentStoreCategory === "border") {
-                  if(currentItem.topLeft){
-                    currentBorderStyle = { 
-                      topLeft: currentItem.topLeft, 
-                      topRight: currentItem.topRight, 
-                      bottomLeft: currentItem.bottomLeft, 
-                      bottomRight: currentItem.bottomRight, 
-                      horizontal: currentItem.horizontal, 
-                      vertical: currentItem.vertical 
-                    };
-                  } else {
-                    currentBorderStyle = { 
-                      topLeft: currentItem.corner, 
-                      topRight: currentItem.corner, 
-                      bottomLeft: currentItem.corner, 
-                      bottomRight: currentItem.corner, 
-                      horizontal: currentItem.horizontal, 
-                      vertical: currentItem.vertical 
-                    };
-                  }
+                  currentBorderStyle = currentItem.topLeft
+                    ? { topLeft: currentItem.topLeft, topRight: currentItem.topRight, bottomLeft: currentItem.bottomLeft, bottomRight: currentItem.bottomRight, horizontal: currentItem.horizontal, vertical: currentItem.vertical }
+                    : { topLeft: currentItem.corner, topRight: currentItem.corner, bottomLeft: currentItem.corner, bottomRight: currentItem.corner, horizontal: currentItem.horizontal, vertical: currentItem.vertical };
                 } else if (currentStoreCategory === "theme") {
                   currentTheme = { background: currentItem.background, color: currentItem.color };
                   document.body.style.backgroundColor = currentTheme.background;
                   document.body.style.color = currentTheme.color;
+                } else if (currentStoreCategory === "tetromino") {
+                  tetrominoColors = currentItem.colors;
                 }
                 saveGameData();
+                showToast("Selected " + currentItem.name);
               } else {
-                alert("Not enough coins!");
+                showToast("Not enough coins!");
               }
             } else {
               if (currentStoreCategory === "block") {
                 currentBlockAppearance = currentItem.appearance;
               } else if (currentStoreCategory === "border") {
-                if(currentItem.topLeft){
-                  currentBorderStyle = { 
-                    topLeft: currentItem.topLeft, 
-                    topRight: currentItem.topRight, 
-                    bottomLeft: currentItem.bottomLeft, 
-                    bottomRight: currentItem.bottomRight, 
-                    horizontal: currentItem.horizontal, 
-                    vertical: currentItem.vertical 
-                  };
-                } else {
-                  currentBorderStyle = { 
-                    topLeft: currentItem.corner, 
-                    topRight: currentItem.corner, 
-                    bottomLeft: currentItem.corner, 
-                    bottomRight: currentItem.corner, 
-                    horizontal: currentItem.horizontal, 
-                    vertical: currentItem.vertical 
-                  };
-                }
+                currentBorderStyle = currentItem.topLeft
+                  ? { topLeft: currentItem.topLeft, topRight: currentItem.topRight, bottomLeft: currentItem.bottomLeft, bottomRight: currentItem.bottomRight, horizontal: currentItem.horizontal, vertical: currentItem.vertical }
+                  : { topLeft: currentItem.corner, topRight: currentItem.corner, bottomLeft: currentItem.corner, bottomRight: currentItem.corner, horizontal: currentItem.horizontal, vertical: currentItem.vertical };
               } else if (currentStoreCategory === "theme") {
                 currentTheme = { background: currentItem.background, color: currentItem.color };
                 document.body.style.backgroundColor = currentTheme.background;
                 document.body.style.color = currentTheme.color;
+              } else if (currentStoreCategory === "tetromino") {
+                tetrominoColors = currentItem.colors;
               }
               saveGameData();
+              showToast("Selected " + currentItem.name);
             }
             renderStore();
           } else if (e.key === "Escape" || e.key.toLowerCase() === "q") {
