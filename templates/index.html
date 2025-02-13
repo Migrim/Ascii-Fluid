@@ -70,7 +70,7 @@
         font-family: monospace;
         font-size: 16px;
         display: none;
-        z-index: 20;
+        z-index: 9999;
       }
       #coinDisplay {
         display: inline-block;
@@ -108,7 +108,13 @@
       let gameState = "menu";
       const mainMenuOptions = ["Play", "Instructions", "Settings", "Customization"];
       let currentMainMenuIndex = 0;
-      const settingsMenuOptions = ["Difficulty", "Color Mode", "Back"];
+      const settingsMenuOptions = [
+        "Difficulty: Normal",
+        "Color Mode: Colors",
+        "Ghost Piece: On",
+        "Sound: On",
+        "Back"
+      ];
       let currentSettingsMenuIndex = 0;
       const gameModes = ["Normal", "Time Attack", "Chaos Blitz", "Hardcore"];
       let currentGameModeIndex = 0;
@@ -131,6 +137,8 @@
       let specialMessage = "";
       let difficultySetting = "Normal";
       let colorMode = "colors";
+      let ghostPieceSetting = "On";
+      let soundSetting = "On";
       const difficultyConfig = {
         Easy: { initialSpeed: 700, acceleration: 0.98 },
         Normal: { initialSpeed: 500, acceleration: 0.95 },
@@ -198,6 +206,64 @@
       ];
       let tetrominoColors = { I: "cyan", J: "blue", L: "orange", O: "yellow", S: "lime", T: "magenta", Z: "red" };
       let highScore = 0;
+      const SPACEBAR_HOLD_THRESHOLD = 200;
+      const SPACEBAR_DROP_INTERVAL_TIME = 100;
+      let spacebarHeld = false;
+      let spacebarHoldTimeout = null;
+      let spacebarDropInterval = null;
+      let spacebarKeyDownTime = 0;
+      function playSound(type) {
+        if (soundSetting !== "On") return;
+        if (!window.audioCtx) window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = window.audioCtx.createOscillator();
+        const gainNode = window.audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(window.audioCtx.destination);
+        oscillator.type = "square";
+        let frequency = 440, duration = 0.1;
+        if (type === "rotate") { frequency = 523.25; duration = 0.08; }
+        else if (type === "move") { frequency = 392; duration = 0.05; }
+        else if (type === "drop") { frequency = 329.63; duration = 0.1; }
+        else if (type === "lineClear") { frequency = 659.25; duration = 0.15; }
+        else if (type === "menuNavigate") { frequency = 740; duration = 0.05; }
+        else if (type === "menuSelect") { frequency = 880; duration = 0.1; }
+        else if (type === "menuCancel") { frequency = 330; duration = 0.1; }
+        else if (type === "menuChange") { frequency = 600; duration = 0.07; }
+        oscillator.frequency.setValueAtTime(frequency, window.audioCtx.currentTime);
+        oscillator.start();
+        gainNode.gain.setValueAtTime(1, window.audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, window.audioCtx.currentTime + duration);
+        oscillator.stop(window.audioCtx.currentTime + duration);
+      }
+      function playMelody(melody) {
+        if (soundSetting !== "On") return;
+        if (!window.audioCtx) window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let t = window.audioCtx.currentTime;
+        melody.forEach(note => {
+          const osc = window.audioCtx.createOscillator();
+          const gain = window.audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(window.audioCtx.destination);
+          osc.type = "square";
+          osc.frequency.setValueAtTime(note.frequency, t);
+          osc.start(t);
+          gain.gain.setValueAtTime(1, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + note.duration);
+          osc.stop(t + note.duration);
+          t += note.duration * 1.1;
+        });
+      }
+      const levelUpMelody = [
+        { frequency: 523.25, duration: 0.2 },
+        { frequency: 587.33, duration: 0.2 },
+        { frequency: 659.25, duration: 0.2 }
+      ];
+      const gameOverMelody = [
+        { frequency: 392, duration: 0.3 },
+        { frequency: 349.23, duration: 0.3 },
+        { frequency: 329.63, duration: 0.3 },
+        { frequency: 293.66, duration: 0.3 }
+      ];
       function loadGameData(){ 
         let data = localStorage.getItem("terminalBlocksData"); 
         if(data){ 
@@ -210,6 +276,8 @@
           currentBorderStyle = obj.currentBorderStyle || currentBorderStyle; 
           currentTheme = obj.currentTheme || currentTheme; 
           tetrominoColors = obj.currentTetrominoScheme || tetrominoColors;
+          ghostPieceSetting = obj.ghostPieceSetting || ghostPieceSetting;
+          soundSetting = obj.soundSetting || soundSetting;
         } 
       }
       function saveGameData(){ 
@@ -222,6 +290,8 @@
           currentBorderStyle: currentBorderStyle, 
           currentTheme: currentTheme,
           currentTetrominoScheme: tetrominoColors,
+          ghostPieceSetting: ghostPieceSetting,
+          soundSetting: soundSetting,
           storeItems: storeItems 
         }; 
         localStorage.setItem("terminalBlocksData", JSON.stringify(data)); 
@@ -310,6 +380,7 @@
         }, 150);
       }
       function animateLevelUp(callback) {
+        playMelody(levelUpMelody);
         let flashes = 0;
         flashInterval = setInterval(() => {
           flashes++;
@@ -323,6 +394,7 @@
         }, 150);
       }
       function animateGameOver(callback) {
+        playMelody(gameOverMelody);
         let flashes = 0;
         flashInterval = setInterval(() => {
           flashes++;
@@ -336,7 +408,7 @@
         }, 200);
       }
       function computeGhostCells() {
-        if (!fallingPiece) return [];
+        if (!fallingPiece || ghostPieceSetting === "Off") return [];
         let ghost = { x: fallingPiece.x, y: fallingPiece.y, shape: fallingPiece.shape, rotation: fallingPiece.rotation };
         while (validMove(ghost.x, ghost.y + 1, ghost.rotation)) {
           ghost.y++;
@@ -476,6 +548,8 @@
         let options = [
           "Difficulty: " + difficultySetting,
           "Color Mode: " + (colorMode === "colors" ? "Colors" : "Monochrome"),
+          "Ghost Piece: " + ghostPieceSetting,
+          "Sound: " + soundSetting,
           "Back"
         ];
         let width = 34;
@@ -498,7 +572,7 @@
       function renderStore() {
         let content = "<div id='storeContent'>";
         content += "<div style='font-size:24px; font-weight:bold; margin-bottom:10px;'>Customisation Store</div>";
-        content += "<div id='coinDisplay'></div>";
+        content += "<div id='coinDisplay' style='margin-bottom:10px;'>Coins: " + coins + "</div>";
         const catNames = { block: "Block", border: "Border", theme: "Theme", tetromino: "Tetromino" };
         let currentCatIndex = storeCategories.indexOf(currentStoreCategory);
         content += "<div id='storeCategories' style='margin-bottom:20px;'>Categories: ";
@@ -546,7 +620,7 @@
         let output = "Instructions\n\n";
         output += "Movement: Use W/A/S/D or Arrow keys to move pieces.\n";
         output += "Rotation: Press W or Up to rotate, Z to counter-rotate.\n";
-        output += "Drop: Press Spacebar for instant drop.\n";
+        output += "Drop: Press Spacebar for instant drop (tap) or hold for a slower continuous drop.\n";
         output += "Pause: Press P to pause.\n";
         output += "Exit: Press Esc/Q to open the exit modal.\n";
         output += "Menu Navigation: Use W/S to navigate and Enter to select.\n";
@@ -654,6 +728,7 @@
               else if (fullLines.length === 4) bonus = 6000;
               timeAttackRemaining += bonus;
             }
+            playSound("lineClear");
             combo++;
             if (fullLines.length === 4) {
               animating = true;
@@ -733,6 +808,7 @@
           if (score > highScore) highScore = score;
           saveGameData();
           gameState = "gameover";
+          playMelody(gameOverMelody);
           animateGameOver(renderGameOver);
         }
       }
@@ -785,10 +861,12 @@
             paused = false;
             updateExitModal(false);
             gameState = "menu";
+            playSound("menuSelect");
             renderMainMenu();
           } else if (e.key.toLowerCase() === "n") {
             paused = false;
             updateExitModal(false);
+            playSound("menuCancel");
             renderGame();
           }
           return;
@@ -796,11 +874,14 @@
         if (gameState === "menu") {
           if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") {
             currentMainMenuIndex = (currentMainMenuIndex - 1 + mainMenuOptions.length) % mainMenuOptions.length;
+            playSound("menuNavigate");
             renderMainMenu();
           } else if (e.key === "ArrowDown" || e.key.toLowerCase() === "s") {
             currentMainMenuIndex = (currentMainMenuIndex + 1) % mainMenuOptions.length;
+            playSound("menuNavigate");
             renderMainMenu();
           } else if (e.key === "Enter") {
+            playSound("menuSelect");
             const option = mainMenuOptions[currentMainMenuIndex];
             if (option === "Play") {
               gameState = "modeSelect";
@@ -824,20 +905,25 @@
         } else if (gameState === "modeSelect") {
           if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") {
             currentGameModeIndex = (currentGameModeIndex - 1 + gameModes.length) % gameModes.length;
+            playSound("menuNavigate");
             renderModeSelect();
           } else if (e.key === "ArrowDown" || e.key.toLowerCase() === "s") {
             currentGameModeIndex = (currentGameModeIndex + 1) % gameModes.length;
+            playSound("menuNavigate");
             renderModeSelect();
           } else if (e.key === "Enter") {
+            playSound("menuSelect");
             selectedGameMode = gameModes[currentGameModeIndex];
             startGame();
           } else if (e.key === "Escape" || e.key.toLowerCase() === "q") {
+            playSound("menuCancel");
             gameState = "menu";
             renderMainMenu();
           }
           return;
         } else if (gameState === "help") {
           if (e.key === "Escape" || e.key.toLowerCase() === "q") {
+            playSound("menuCancel");
             gameState = "menu";
             renderMainMenu();
           }
@@ -845,11 +931,14 @@
         } else if (gameState === "settings") {
           if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") {
             currentSettingsMenuIndex = (currentSettingsMenuIndex - 1 + settingsMenuOptions.length) % settingsMenuOptions.length;
+            playSound("menuNavigate");
             renderSettingsMenu();
           } else if (e.key === "ArrowDown" || e.key.toLowerCase() === "s") {
             currentSettingsMenuIndex = (currentSettingsMenuIndex + 1) % settingsMenuOptions.length;
+            playSound("menuNavigate");
             renderSettingsMenu();
           } else if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a" || e.key === "ArrowRight" || e.key.toLowerCase() === "d") {
+            playSound("menuChange");
             if (currentSettingsMenuIndex === 0) {
               const difficulties = ["Easy", "Normal", "Hard"];
               let index = difficulties.indexOf(difficultySetting);
@@ -863,9 +952,18 @@
               colorMode = (colorMode === "colors") ? "monochrome" : "colors";
               renderSettingsMenu();
               saveGameData();
+            } else if (currentSettingsMenuIndex === 2) {
+              ghostPieceSetting = (ghostPieceSetting === "On") ? "Off" : "On";
+              renderSettingsMenu();
+              saveGameData();
+            } else if (currentSettingsMenuIndex === 3) {
+              soundSetting = (soundSetting === "On") ? "Off" : "On";
+              renderSettingsMenu();
+              saveGameData();
             }
           } else if (e.key === "Enter") {
-            if (currentSettingsMenuIndex === 2) {
+            playSound("menuSelect");
+            if (currentSettingsMenuIndex === 4) {
               gameState = "menu";
               renderMainMenu();
             }
@@ -877,22 +975,27 @@
             idx = (idx - 1 + storeCategories.length) % storeCategories.length;
             currentStoreCategory = storeCategories[idx];
             currentStoreItemIndex = 0;
+            playSound("menuNavigate");
             renderStore();
           } else if (e.key === "ArrowDown" || e.key.toLowerCase() === "s") {
             let idx = storeCategories.indexOf(currentStoreCategory);
             idx = (idx + 1) % storeCategories.length;
             currentStoreCategory = storeCategories[idx];
             currentStoreItemIndex = 0;
+            playSound("menuNavigate");
             renderStore();
           } else if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") {
             let items = storeItems[currentStoreCategory];
             currentStoreItemIndex = (currentStoreItemIndex - 1 + items.length) % items.length;
+            playSound("menuChange");
             renderStore();
           } else if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") {
             let items = storeItems[currentStoreCategory];
             currentStoreItemIndex = (currentStoreItemIndex + 1) % items.length;
+            playSound("menuChange");
             renderStore();
           } else if (e.key === "Enter") {
+            playSound("menuSelect");
             let currentItem = storeItems[currentStoreCategory][currentStoreItemIndex];
             if (!currentItem.unlocked) {
               if (coins >= currentItem.price) {
@@ -912,7 +1015,7 @@
                   tetrominoColors = currentItem.colors;
                 }
                 saveGameData();
-                showToast("Selected " + currentItem.name);
+                showToast("Bought " + currentItem.name);
               } else {
                 showToast("Not enough coins!");
               }
@@ -935,12 +1038,14 @@
             }
             renderStore();
           } else if (e.key === "Escape" || e.key.toLowerCase() === "q") {
+            playSound("menuCancel");
             gameState = "menu";
             renderMainMenu();
           }
           return;
         } else if (gameState === "gameover") {
           if (e.key === "Enter") {
+            playSound("menuSelect");
             gameState = "menu";
             renderMainMenu();
           }
@@ -964,6 +1069,7 @@
               paused = true;
               pauseStartTime = Date.now();
             }
+            playSound("menuSelect");
             updatePauseModal();
             renderGame();
           }
@@ -971,32 +1077,68 @@
           if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") {
             if (validMove(fallingPiece.x - 1, fallingPiece.y, fallingPiece.rotation)) {
               fallingPiece.x--;
+              playSound("move");
               renderGame();
             }
           } else if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") {
             if (validMove(fallingPiece.x + 1, fallingPiece.y, fallingPiece.rotation)) {
               fallingPiece.x++;
+              playSound("move");
               renderGame();
             }
           } else if (e.key === "ArrowDown" || e.key.toLowerCase() === "s") {
             if (validMove(fallingPiece.x, fallingPiece.y + 1, fallingPiece.rotation)) {
               fallingPiece.y++;
+              playSound("move");
               renderGame();
             }
           } else if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") {
             let newRotation = (fallingPiece.rotation + 1) % 4;
-            tryRotate(newRotation);
+            if (tryRotate(newRotation)) playSound("rotate");
             renderGame();
           } else if (e.key.toLowerCase() === "z") {
             let newRotation = (fallingPiece.rotation + 3) % 4;
-            tryRotate(newRotation);
+            if (tryRotate(newRotation)) playSound("rotate");
             renderGame();
           } else if (e.key === " ") {
-            while (validMove(fallingPiece.x, fallingPiece.y + 1, fallingPiece.rotation)) {
-              fallingPiece.y++;
+            if (!spacebarHeld) {
+              spacebarHeld = true;
+              spacebarKeyDownTime = Date.now();
+              spacebarHoldTimeout = setTimeout(() => {
+                spacebarDropInterval = setInterval(() => {
+                  if (validMove(fallingPiece.x, fallingPiece.y + 1, fallingPiece.rotation)) {
+                    fallingPiece.y++;
+                    playSound("drop");
+                    renderGame();
+                  } else {
+                    clearInterval(spacebarDropInterval);
+                    spacebarDropInterval = null;
+                  }
+                }, SPACEBAR_DROP_INTERVAL_TIME);
+              }, SPACEBAR_HOLD_THRESHOLD);
             }
-            renderGame();
-            gameTick();
+          }
+        }
+      });
+      document.addEventListener("keyup", function(e) {
+        if (e.key === " ") {
+          spacebarHeld = false;
+          if (spacebarHoldTimeout) {
+            let elapsed = Date.now() - spacebarKeyDownTime;
+            clearTimeout(spacebarHoldTimeout);
+            spacebarHoldTimeout = null;
+            if (elapsed < SPACEBAR_HOLD_THRESHOLD) {
+              while (validMove(fallingPiece.x, fallingPiece.y + 1, fallingPiece.rotation)) {
+                fallingPiece.y++;
+              }
+              playSound("drop");
+              renderGame();
+              gameTick();
+            }
+          }
+          if (spacebarDropInterval) {
+            clearInterval(spacebarDropInterval);
+            spacebarDropInterval = null;
           }
         }
       });
